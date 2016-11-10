@@ -1,0 +1,29 @@
+#!/usr/bin/env bash
+
+if [ -z "$4" ]; then
+  echo "Imap idle listener"
+  echo "Usage: $0 user@domain.com password server:993 /usr/bin/notify_command"
+  exit 1
+fi
+
+user=$1
+password=$2
+server=$3
+command=$4
+
+start_idle () {
+  echo ". login \"$user\" \"$password\""
+  echo ". select inbox"
+  echo ". idle"
+  # Keep open the openssl input so it keeps listening
+  cat
+}
+
+# Start ssl connection
+echo "Starting imap idle client, logging in as $user at $server"
+while read -r line ; do
+  if echo "$line" | grep -Eq ". [1-9][0-9]? EXISTS"; then
+    echo "New mail received, executing $command"
+    $command
+  fi
+done < <(openssl s_client -crlf -connect "$server" 2>/dev/null < <(start_idle))
