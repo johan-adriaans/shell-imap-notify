@@ -15,15 +15,25 @@ start_idle () {
   echo ". login \"$user\" \"$password\""
   echo ". select inbox"
   echo ". idle"
-  # Keep open the openssl input so it keeps listening
-  cat
+  while true; do
+    sleep 600;
+    echo "done"
+    echo ". noop"
+    echo ". idle"
+  done
 }
 
 # Start ssl connection
 echo "Starting imap idle client, logging in as $user at $server"
 while read -r line ; do
+  # Debug info, turn this off for silent operation
+  echo "$line"
   if echo "$line" | grep -Eq ". [1-9][0-9]? EXISTS"; then
     echo "New mail received, executing $command"
     $command
   fi
-done < <(openssl s_client -crlf -connect "$server" 2>/dev/null < <(start_idle))
+  if echo "$line" | grep -Eq ". [1-9][0-9]? EXPUNGE"; then
+    echo "Mail removed from server, executing $command"
+    $command
+  fi
+done < <(openssl s_client -crlf -quiet -connect "$server" 2>/dev/null < <(start_idle))
